@@ -1,29 +1,47 @@
 interface Listing {
+  id: number;
   title: string;
   description: string;
   bedrooms: number;
   bathrooms: number;
   views: number;
-  images: { path: string }[];
+  price: number;
+  image: string | null;
   type: string;
 }
 
-export default defineEventHandler(async () => {
+interface PaginatedListings {
+  current_page: number;
+  data: Listing[];
+  last_page: number;
+  per_page: number;
+  total: number;
+}
+
+export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
 
-  // Use the public or private URL
-  const apiUrl = `${config.laravelApi}/api/listings`;
+  const query = getQuery(event);
 
-  const listings = await $fetch<Listing[]>(apiUrl);
+  const response = await $fetch<PaginatedListings>(`${config.laravelApi}/api/listings`, {
+    params: query,
+  });
 
-  return listings.map((listing) => ({
-    title: listing.title.toLowerCase(),
-    description: listing.description.toLowerCase(),
-    bedrooms: listing.bedrooms,
-    bathrooms: listing.bathrooms,
-    views: listing.views,
-    price: listing.price,
-    image: listing.images?.length ? listing.images[0].path : null,
-    type: listing.type,
-  }));
+  return {
+    current_page: response.current_page,
+    last_page: response.last_page,
+    per_page: response.per_page,
+    total: response.total,
+    data: response.data.map((listing) => ({
+      id: listing.id,
+      title: listing.title.toLowerCase(),
+      description: listing.description.toLowerCase(),
+      bedrooms: listing.bedrooms,
+      bathrooms: listing.bathrooms,
+      views: listing.views,
+      price: listing.price,
+      image: listing.image,
+      type: listing.type,
+    })),
+  };
 });

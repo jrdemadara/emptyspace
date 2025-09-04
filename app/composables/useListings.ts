@@ -1,15 +1,23 @@
-// composables/useListings.ts
 import { ref } from "vue";
 
 export interface Listing {
+  id: number;
   title: string;
   description: string;
   bedrooms: number;
   bathrooms: number;
   views: number;
   price: number;
-  images: { path: string }[];
+  image: string | null;
   type: string;
+}
+
+interface PaginatedResponse<T> {
+  current_page: number;
+  data: T[];
+  last_page: number;
+  per_page: number;
+  total: number;
 }
 
 export const useListings = () => {
@@ -17,12 +25,29 @@ export const useListings = () => {
   const loading = ref(false);
   const error = ref<Error | null>(null);
 
-  const fetchListings = async () => {
+  // pagination state
+  const currentPage = ref(1);
+  const lastPage = ref(1);
+  const total = ref(0);
+  const perPage = ref(10);
+
+  const fetchListings = async (filters: Record<string, string | number> = {}) => {
     loading.value = true;
     error.value = null;
+
     try {
-      const data = await $fetch<Listing[]>("/api/listings");
-      listings.value = data;
+      const response = await $fetch<PaginatedResponse<Listing>>("/api/listings", {
+        params: {
+          ...filters,
+          per_page: perPage.value,
+        },
+      });
+
+      listings.value = response.data;
+      currentPage.value = response.current_page;
+      lastPage.value = response.last_page;
+      perPage.value = response.per_page;
+      total.value = response.total;
     } catch (err: unknown) {
       if (err instanceof Error) {
         error.value = err;
@@ -34,5 +59,14 @@ export const useListings = () => {
     }
   };
 
-  return { listings, loading, error, fetchListings };
+  return {
+    listings,
+    loading,
+    error,
+    fetchListings,
+    currentPage,
+    lastPage,
+    perPage,
+    total,
+  };
 };
