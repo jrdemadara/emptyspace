@@ -1,16 +1,14 @@
-import { ref } from "vue";
-
-export interface ListingType {
+interface ListingType {
   id: number;
   name: string;
 }
 
-export interface Amenity {
+interface Amenity {
   id: number;
   name: string;
 }
 
-export interface Image {
+interface Image {
   id: number;
   url: string;
   is_primary?: boolean;
@@ -26,7 +24,7 @@ interface NearbyPlace {
   mode: string;
 }
 
-export interface Listing {
+interface Listing {
   id: number;
   title: string;
   description: string;

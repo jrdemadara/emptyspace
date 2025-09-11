@@ -12,20 +12,13 @@ defineProps({
 </script>
 
 <template>
-    <div class="flex items-center">
+    <div class="flex items-center space-x-2">
         <!-- The logo icon -->
         <div class="flex items-center justify-center" :class="logoClass">
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                class="w-full h-full text-amber-500"
-            >
-                <path d="M2.5 2.5v19h19V2.5h-19zm4 4h11v11h-11V6.5z" />
-            </svg>
+            <img src="../assets/img/logonobg.png" alt="" />
         </div>
 
         <!-- The logo text -->
-        <h1 class="font-bold tracking-tight" :class="textClass">Emptyspace</h1>
+        <h1 class="font-semibold tracking-tight" :class="textClass">Findspace</h1>
     </div>
 </template>

@@ -1,6 +1,6 @@
 import { ref } from "vue";
 
-export interface Listing {
+interface Listing {
   id: number;
   title: string;
   description: string;

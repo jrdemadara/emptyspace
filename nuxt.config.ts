@@ -10,11 +10,11 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     // Private runtime config (server-only)
-    laravelApi: process.env.LARAVEL_API || "http://localhost:8000",
+    laravelApi: process.env.LARAVEL_API || "http://192.168.1.6:8000",
 
     // Public runtime config (available in client-side too)
     public: {
-      laravelApi: process.env.LARAVEL_API || "http://localhost:8000",
+      laravelApi: process.env.LARAVEL_API || "http://192.168.1.6:8000",
     },
   },
   app: {

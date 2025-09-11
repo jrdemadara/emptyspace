@@ -1,5 +1,7 @@
 import { defineStore } from "pinia";
 
+export type AuthStep = "check" | "login" | "register";
+
 export interface User {
   id: number | null;
   first_name: string | null;
@@ -19,6 +21,9 @@ export interface AuthResponse {
 
 export const useAuth = defineStore("auth", {
   state: () => ({
+    step: "check" as AuthStep,
+    email: "" as string,
+
     token: null as string | null,
     user: {
       id: null,
@@ -41,41 +46,19 @@ export const useAuth = defineStore("auth", {
   },
 
   actions: {
-    async login(email: string, password: string) {
-      try {
-        const res = await $fetch<AuthResponse>("/api/login", {
-          method: "POST",
-          body: { email, password },
-        });
-
-        this.token = res.token;
-        this.user = { ...res.user, guest: false };
-      } catch (e) {
-        console.error("Login failed", e);
-        throw e;
-      }
+    // Store only updates state — composables will call APIs
+    setEmail(email: string) {
+      this.email = email;
     },
 
-    async register(payload: {
-      first_name: string;
-      last_name: string;
-      screen_name: string;
-      email: string;
-      phone?: string;
-      password: string;
-    }) {
-      try {
-        const res = await $fetch<AuthResponse>("/api/register", {
-          method: "POST",
-          body: payload,
-        });
+    setStep(step: AuthStep) {
+      this.step = step;
+    },
 
-        this.token = res.token;
-        this.user = { ...res.user, guest: false };
-      } catch (e) {
-        console.error("Register failed", e);
-        throw e;
-      }
+    setAuth(res: AuthResponse) {
+      this.token = res.token;
+      this.user = { ...res.user, guest: false };
+      this.step = "check";
     },
 
     logout() {
@@ -91,6 +74,8 @@ export const useAuth = defineStore("auth", {
         role: null,
         guest: true,
       };
+      this.step = "check";
+      this.email = "";
       localStorage.removeItem("auth");
     },
 
@@ -105,7 +90,7 @@ export const useAuth = defineStore("auth", {
         this.user = {
           id: null,
           first_name: "Guest",
-          last_name: guestId.slice(0, 6), // short random suffix
+          last_name: guestId.slice(0, 6),
           screen_name: `guest_${guestId.slice(0, 6)}`,
           photo: null,
           email: null,
@@ -129,6 +114,8 @@ export const useAuth = defineStore("auth", {
         role: null,
         guest: true,
       };
+      this.step = "check";
+      this.email = "";
     },
   },
 
