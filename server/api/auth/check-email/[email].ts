@@ -1,5 +1,6 @@
 interface CheckEmailResponse {
   exists: boolean;
+  message: string;
 }
 
 export default defineEventHandler(async (event) => {

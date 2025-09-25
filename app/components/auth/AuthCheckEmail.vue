@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { z } from "zod";
 import type { FormSubmitEvent } from "@nuxt/ui";
+import { useAuth } from "@/stores/auth";
 import { useCheckEmail } from "~/composables/auth/useCheckEmail";
+
+const auth = useAuth();
 
 const schema = z.object({
     email: z.string().email("Invalid email"),
@@ -14,33 +17,27 @@ const state = reactive<Partial<Schema>>({
 });
 
 const toast = useToast();
-
-// Lazy-load composable when needed
-let response = ref(null);
-let loading = ref(false);
-let error = ref(null);
-
 async function onSubmit(event: FormSubmitEvent<Schema>) {
-    const { result, loading, error: checkError } = useCheckEmail(event.data.email);
+    const { result, error: checkError, refresh } = useCheckEmail(event.data.email);
 
-    response.value = result.value;
-    loading.value = pending.value;
-    error.value = checkError.value;
+    await refresh();
 
-    if (error.value) {
-        toast.add({ title: "Error", description: "Failed to check email", color: "red" });
-    } else if (response.value?.exists) {
-        toast.add({ title: "Email Found", description: "Proceed to login", color: "green" });
-        // show login component
+    if (checkError.value) {
+        toast.add({
+            title: "Error",
+            description: checkError.value.message || "Failed to check email",
+            color: "error",
+        });
+    } else if (result.value?.message === "Email exists") {
+        toast.add({ title: "Email Found", description: "Proceed to login", color: "success" });
+        auth.setEmail(event.data.email);
+        auth.setStep("login");
     } else {
-        toast.add({ title: "New User", description: "Proceed to registration", color: "amber" });
-        // show register component
+        toast.add({ title: "New User", description: "Proceed to registration", color: "neutral" });
+        auth.setEmail(event.data.email);
+        auth.setStep("register");
     }
 }
-
-definePageMeta({
-    layout: false,
-});
 </script>
 
 <template>
@@ -56,7 +53,7 @@ definePageMeta({
             </UFormField>
 
             <UButton
-                :loading="false"
+                loading-auto
                 loading-icon="lucide:loader"
                 type="submit"
                 size="xl"

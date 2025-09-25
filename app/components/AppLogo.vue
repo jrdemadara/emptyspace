@@ -6,7 +6,7 @@ defineProps({
     },
     textClass: {
         type: String,
-        default: "text-2xl text-slate-950",
+        default: "text-2xl ",
     },
 });
 </script>

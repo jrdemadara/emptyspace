@@ -1,5 +1,6 @@
 interface CheckEmailResponse {
   exists: boolean;
+  message: string;
 }
 
 export const useCheckEmail = (email: string) => {
@@ -7,13 +8,14 @@ export const useCheckEmail = (email: string) => {
     data: result,
     pending: loading,
     error,
+    refresh,
   } = useAsyncData<CheckEmailResponse>(
     `check-email-${email}`,
-    () => $fetch(`/api/auth/check-email/${email}`), // hit Nuxt server route
+    () => $fetch(`/api/auth/check-email/${email}`),
     {
-      immediate: false, // only call when you trigger refresh()
+      immediate: false,
     },
   );
 
-  return { result, loading, error };
+  return { result, loading, error, refresh };
 };

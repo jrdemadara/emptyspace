@@ -21,7 +21,10 @@ const auth = useAuth();
 
         <div class="flex-none">
             <div class="flex space-x-1 justify-end items-center">
-                <UButton label="Become a host" variant="outline" color="neutral" />
+                <NuxtLink to="/login">
+                    <UButton label="Become a host" variant="outline" color="neutral" />
+                </NuxtLink>
+
                 <button
                     v-if="auth.isAuthenticated"
                     class="relative flex items-center justify-center hover:bg-amber-200 rounded-full p-2"

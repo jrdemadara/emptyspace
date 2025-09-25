@@ -3,7 +3,7 @@
         class="flex justify-center space-x-32 items-start p-8 text-center text-white bg-slate-900"
     >
         <div class="flex flex-col space-y-4 items-start">
-            <AppLogo color="white" />
+            <AppLogo class="text-white" />
             <small class="max-w-xs text-start text-gray-400">
                 Discover apartments, rooms, and rentals that fit your lifestyle — from cozy
                 hideaways to spacious living, your perfect place starts here.

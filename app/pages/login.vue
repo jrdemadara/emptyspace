@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { z } from "zod";
 import type { FormSubmitEvent } from "@nuxt/ui";
-import AppTermsAgreement from "~/components/AppTermsAgreement.vue";
+
+const auth = useAuth();
 
 const schema = z.object({
     email: z.string().email("Invalid email"),
@@ -22,11 +23,12 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 }
 definePageMeta({
     layout: false,
+    middleware: ["guest"],
 });
 </script>
 <template>
     <div class="flex w-screen h-screen flex-col items-center justify-center space-y-8">
-        <AppLogo logo-class="size-12" text-class="text-3xl text-slate-950" />
+        <AppLogo logo-class="size-12" text-class="text-3xl" />
         <div
             class="flex flex-col rounded-lg border border-slate-300 p-12 space-y-8 w-1/2 max-w-5xl"
         >
@@ -48,40 +50,24 @@ definePageMeta({
                 </p>
             </div>
             <div class="flex w-full justify-between space-x-8">
-                <div class="flex flex-col w-full space-y-5">
-                    <AppLoginCheckEmail />
-                    <div class="flex items-center">
-                        <div class="flex-grow h-px bg-slate-300"></div>
-                        <span class="px-3 text-sm text-slate-500">or</span>
-                        <div class="flex-grow h-px bg-slate-300"></div>
+                <div class="flex flex-col w-full">
+                    <div v-if="auth.step == 'check'" class="flex flex-col space-y-5">
+                        <AuthCheckEmail />
+                        <div class="flex items-center">
+                            <div class="flex-grow h-px bg-slate-300" />
+                            <span class="px-3 text-sm text-slate-500">or</span>
+                            <div class="flex-grow h-px bg-slate-300" />
+                        </div>
+                        <AuthSocial />
                     </div>
 
-                    <div class="flex flex-col space-y-3">
-                        <UButton
-                            color="neutral"
-                            variant="outline"
-                            size="xl"
-                            class="relative justify-center"
-                        >
-                            <Icon name="flat-color-icons:google" class="absolute left-4 size-5" />
-                            Google
-                        </UButton>
-                        <UButton
-                            color="neutral"
-                            variant="outline"
-                            size="xl"
-                            class="relative justify-center"
-                        >
-                            <Icon name="devicon:facebook" class="absolute left-4 size-5" />
-                            Facebook
-                        </UButton>
-
-                        <UCheckbox size="xl" color="warning" label="Keep me signed in" />
-                        <AppTermsAgreement />
+                    <div v-else-if="auth.step == 'login'" class="py-12">
+                        <AuthCheckPassword />
                     </div>
+                    <AppTermsAgreement />
                 </div>
 
-                <div class="h-full w-0.5 bg-slate-200"></div>
+                <div class="h-full w-0.5 bg-slate-200" />
                 <AppLoginAd />
             </div>
         </div>

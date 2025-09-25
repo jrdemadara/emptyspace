@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 
-export type AuthStep = "check" | "login" | "register";
+export type AuthStep = "check" | "login" | "register" | "done";
 
 export interface User {
   id: number | null;
@@ -58,7 +58,7 @@ export const useAuth = defineStore("auth", {
     setAuth(res: AuthResponse) {
       this.token = res.token;
       this.user = { ...res.user, guest: false };
-      this.step = "check";
+      this.step = "done";
     },
 
     logout() {
