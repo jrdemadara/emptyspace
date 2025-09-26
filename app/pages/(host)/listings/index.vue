@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { useUserListings } from "@/composables/host/useUserListings";
 
 definePageMeta({
@@ -36,15 +36,17 @@ const { data, pending, error } = useUserListings();
         <div v-else-if="error">{{ error.message }}</div>
         <div v-else class="flex flex-col space-y-5">
             <div class="flex w-full justify-between">
-                <div class="flex rounded bg-gray-50 w-52"></div>
-                <UButton
-                    icon="i-lucide-plus"
-                    size="xl"
-                    color="secondary"
-                    variant="solid"
-                    class="px-5 justify-center"
-                    >Create Listing</UButton
-                >
+                <div class="flex rounded bg-gray-50 w-52" />
+                <NuxtLink to="/listings/create">
+                    <UButton
+                        icon="i-lucide-plus"
+                        size="xl"
+                        color="secondary"
+                        variant="solid"
+                        class="px-5 justify-center"
+                        >Create Listing</UButton
+                    >
+                </NuxtLink>
             </div>
             <ul class="space-y-4">
                 <li
@@ -62,7 +64,7 @@ const { data, pending, error } = useUserListings();
                         class="flex flex-col border-e border-gray-300 p-2 items-start justify-between w-full"
                     >
                         <div class="flex flex-col">
-                            <span class="font-bold text-lg capitalize">{{ listing.title }}</span>
+                            <span class="font-bold capitalize">{{ listing.title }}</span>
                             <small class="text-gray-500 capitalize font-semibold">
                                 {{ listing.type.name }}
                             </small>
@@ -80,15 +82,11 @@ const { data, pending, error } = useUserListings();
                     >
                         <div class="flex space-x-5 justify-between">
                             <div class="flex flex-col">
-                                <span class="font-bold text-lg capitalize">{{
-                                    listing.address
-                                }}</span>
+                                <span class="font-bold capitalize">{{ listing.address }}</span>
                                 <small class="text-gray-500">Location</small>
                             </div>
                             <div class="flex flex-col">
-                                <span class="font-bold text-lg capitalize">{{
-                                    listing.created_at
-                                }}</span>
+                                <span class="font-bold capitalize">{{ listing.created_at }}</span>
                                 <small class="text-gray-500">Listed</small>
                             </div>
                         </div>
@@ -115,7 +113,7 @@ const { data, pending, error } = useUserListings();
                             <div class="flex flex-col">
                                 <div class="inline-flex items-center space-x-1">
                                     <span
-                                        class="w-3 h-3 rounded-full"
+                                        class="w-2 h-2 rounded-full"
                                         :class="{
                                             'bg-gray-500': listing.status === 'draft',
                                             'bg-green-600': listing.status === 'available',
@@ -127,7 +125,7 @@ const { data, pending, error } = useUserListings();
                                     />
 
                                     <span
-                                        class="font-bold text-lg capitalize"
+                                        class="font-bold capitalize"
                                         :class="{
                                             'text-gray-500': listing.status === 'draft',
                                             'text-green-600': listing.status === 'available',
@@ -154,12 +152,12 @@ const { data, pending, error } = useUserListings();
 
                         <div class="flex space-x-5 justify-between">
                             <div class="flex items-center space-x-5">
-                                <div class="inline-flex space-x-1">
-                                    <UIcon name="i-lucide-heart" size="24" />
+                                <div class="flex items-center space-x-1">
+                                    <UIcon name="i-lucide-heart" size="20" />
                                     <span>{{ listing.views }}</span>
                                 </div>
-                                <div class="inline-flex space-x-1">
-                                    <UIcon name="i-lucide-eye" size="24" />
+                                <div class="flex items-center space-x-1">
+                                    <UIcon name="i-lucide-eye" size="20" />
                                     <span>{{ listing.views }}</span>
                                 </div>
                             </div>
