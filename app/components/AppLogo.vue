@@ -15,10 +15,12 @@ defineProps({
     <div class="flex items-center space-x-2">
         <!-- The logo icon -->
         <div class="flex items-center justify-center" :class="logoClass">
-            <img src="../assets/img/logonobg.png" alt="" />
+            <img src="../assets/img/logonobg.png" alt="logo" />
         </div>
 
         <!-- The logo text -->
-        <h1 class="font-semibold tracking-tight" :class="textClass">Findspace</h1>
+        <h1 class="font-semibold tracking-tight text-gray-900 dark:text-white" :class="textClass">
+            Findspace
+        </h1>
     </div>
 </template>

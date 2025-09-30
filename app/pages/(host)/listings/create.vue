@@ -2,17 +2,15 @@
 import * as z from "zod";
 import type { FormSubmitEvent, SelectItem, TableColumn } from "@nuxt/ui";
 import type { Row } from "@tanstack/vue-table";
-import mapboxgl, { Map } from "mapbox-gl";
-import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
-import type { GeocoderResult } from "@mapbox/mapbox-gl-geocoder";
-import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
+import mapboxgl from "mapbox-gl";
+
+const colorMode = useColorMode();
+const colorModeClass = computed(() => (colorMode.value === "dark" ? "dark" : ""));
 
 definePageMeta({
     layout: "host",
     middleware: ["auth"],
 });
-
-const config = useRuntimeConfig();
 
 const toast = useToast();
 
@@ -22,6 +20,7 @@ const status = ["Draft", "Available"];
 
 const mode = ["Walk", "Drive", "Bike", "Transit"];
 const placeType = ["Mall", "Pharmacy", "School", "Hospital", "Transport", "Other"];
+const checkBoxOptions = ref(["Publish", "Draft"]);
 
 const amenitiesOptions = ref<SelectItem[]>([
     {
@@ -49,6 +48,38 @@ const placesOptions = ref([["Mall", "Pharmacy", "School", "Hospital", "Transport
 
 const modeOptions = ref([["Walk", "Drive", "Bike", "Transit"]]);
 
+const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+const MIN_DIMENSIONS = { width: 200, height: 200 };
+const MAX_DIMENSIONS = { width: 4096, height: 4096 };
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+const formatBytes = (bytes: number, decimals = 2) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+};
+
+const validateDimensions = (file: File) =>
+    new Promise<boolean>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const meets =
+                    img.width >= MIN_DIMENSIONS.width &&
+                    img.height >= MIN_DIMENSIONS.height &&
+                    img.width <= MAX_DIMENSIONS.width &&
+                    img.height <= MAX_DIMENSIONS.height;
+                resolve(meets);
+            };
+            img.src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    });
+
 const schema = z.object({
     title: z
         .string()
@@ -56,7 +87,7 @@ const schema = z.object({
         .max(100, "Title must be at most 100 characters"),
     description: z.string().optional(),
     availability: z.enum(availability),
-    price: z.number().min(0, "Price must be greater than or equal to 0"),
+    price: z.number().min(1, "Price must be greater than 0"),
 
     occupants: z
         .number()
@@ -85,7 +116,7 @@ const schema = z.object({
     own_electric_meter: z.boolean().default(false),
     own_water_meter: z.boolean().default(false),
     internet_ready: z.boolean().default(false),
-    cable_tv: z.boolean().default(false),
+    ac_ready: z.boolean().default(false),
     kitchen_type: z.enum(type),
     bathroom_type: z.enum(type),
 
@@ -101,10 +132,10 @@ const schema = z.object({
         .string("Invalid city")
         .min(6, "City must be at least 6 characters")
         .max(100, "City must be at most 100 characters"),
-    landmark: z
-        .string("Invalid landmark")
-        .min(6, "Landmark must be at least 6 characters")
-        .max(100, "Landmark must be at most 100 characters"),
+    country: z
+        .string("Invalid country")
+        .min(3, "Country must be at least 3 characters")
+        .max(100, "Country must be at most 100 characters"),
     longitude: z
         .number()
         .min(-180, "Longitude must be between -180 and 180")
@@ -115,46 +146,81 @@ const schema = z.object({
         .max(90, "Latitude must be between -90 and 90"),
 
     amenities: z.array(z.string()).optional(),
+    nearby_places: z
+        .array(
+            z.object({
+                place_name: z.string(),
+                place_type: z.string(),
+                distance: z.number(),
+                duration: z.number(),
+                mode: z.string(),
+            }),
+        )
+        .min(1, "At least 1 nearby place is required"),
+    images: z
+        .array(
+            z
+                .instanceof(File, { message: "Please select an image file." })
+                .refine((file) => file.size <= MAX_FILE_SIZE, {
+                    message: `Each image must be smaller than ${formatBytes(MAX_FILE_SIZE)}.`,
+                })
+                .refine((file) => ACCEPTED_IMAGE_TYPES.includes(file.type), {
+                    message: "Images must be JPEG, PNG, or WebP.",
+                })
+                .refine((file) => validateDimensions(file), {
+                    message: `Images must be between ${MIN_DIMENSIONS.width}x${MIN_DIMENSIONS.height}
+                      and ${MAX_DIMENSIONS.width}x${MAX_DIMENSIONS.height} pixels.`,
+                }),
+        )
+        .min(4, { message: "Please upload at least 4 images." })
+        .max(4, { message: "You can upload a maximum of 4 images." }),
     status: z.enum(status),
 });
 
 type Schema = z.output<typeof schema>;
 
 const state = reactive<Partial<Schema>>({
-    title: undefined,
-    description: undefined,
+    title: "",
+    description: "",
     availability: undefined,
-    price: undefined,
+    price: 0,
 
-    occupants: undefined,
-    bedrooms: undefined,
-    bathrooms: undefined,
-    month_advance: undefined,
-    month_deposit: undefined,
-    own_electric_meter: undefined,
-    own_water_meter: undefined,
-    internet_ready: undefined,
-    cable_tv: undefined,
+    occupants: 0,
+    bedrooms: 0,
+    bathrooms: 0,
+    month_advance: 0,
+    month_deposit: 0,
+    own_electric_meter: false,
+    own_water_meter: false,
+    internet_ready: false,
+    ac_ready: false,
 
     kitchen_type: undefined,
     bathroom_type: undefined,
 
-    address: undefined,
-    barangay: undefined,
-    city: undefined,
-    landmark: undefined,
-    longitude: undefined,
-    latitude: undefined,
-    amenities: undefined,
-
-    status: undefined,
+    address: "",
+    barangay: "",
+    city: "",
+    country: "",
+    longitude: 0,
+    latitude: 0,
+    amenities: [],
+    nearby_places: [] as NearbyPlace[],
+    images: [],
+    status: "",
 });
 
+const capitalizeWords = (input: string) =>
+    input
+        .split(" ")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(" ");
+
 const nearbyPlaceSchema = z.object({
-    place_name: z.string().min(1, "Place name is required"),
+    place_name: z.string().min(1, "Place name is required").transform(capitalizeWords),
     place_type: z.enum(placeType),
-    distance: z.number().min(0).nullable(),
-    duration: z.number().min(0).nullable(),
+    distance: z.number().min(0),
+    duration: z.number().min(0),
     mode: z.enum(mode),
 });
 type NearbyPlace = z.infer<typeof nearbyPlaceSchema>;
@@ -165,8 +231,8 @@ const editIndex = ref<number | null>(null);
 const stateNearbyPlaces = reactive<Partial<NearbyPlace>>({
     place_name: undefined,
     place_type: undefined,
-    distance: undefined,
-    duration: undefined,
+    distance: 0,
+    duration: 0,
     mode: undefined,
 });
 
@@ -248,6 +314,7 @@ const columns: TableColumn<NearbyPlace>[] = [
                 h(
                     "button",
                     {
+                        type: "button",
                         class: "text-blue-600  hover:underline",
                         onClick: () => editPlace(row),
                     },
@@ -256,6 +323,7 @@ const columns: TableColumn<NearbyPlace>[] = [
                 h(
                     "button",
                     {
+                        type: "button",
                         class: "text-red-600 hover:underline",
                         onClick: () => deletePlace(row),
                     },
@@ -265,100 +333,180 @@ const columns: TableColumn<NearbyPlace>[] = [
     },
 ];
 
-// Your form state
-const addressState = reactive({
-    address: "",
-    barangay: "",
-    city: "",
-    landmark: "",
-    longitude: undefined as number | undefined,
-    latitude: undefined as number | undefined,
-});
-
-// Temp holder for pending suggestion
-const pendingAddress = ref<{
-    place_name: string;
-    lng: number;
-    lat: number;
-    context: any[];
-} | null>(null);
-
 const mapModalOpen = ref(false);
+const miniMapRef = ref<HTMLDivElement | null>(null);
+const map: Ref<mapboxgl.Map | null> = ref(null);
+const marker: Ref<mapboxgl.Marker | null> = ref(null);
 
-let map: mapboxgl.Map;
+interface MapboxFeature {
+    id: string;
+    place_name: string;
+    center: [number, number];
+}
 
-onMounted(() => {
-    mapboxgl.accessToken = config.public.mapboxToken;
+interface MapboxResponse {
+    type: string;
+    query: string[];
+    features: MapboxFeature[];
+}
 
-    // Init map
-    map = new mapboxgl.Map({
-        container: "mini-map",
-        style: "mapbox://styles/mapbox/streets-v11",
-        center: [121.0, 14.6], // default Manila
-        zoom: 12,
+const searchQuery = ref("");
+const searchResults = ref<MapboxFeature[]>([]);
+
+const isLoading = ref(false);
+
+const pendingAddress = reactive<{
+    place_name?: string;
+    longitude?: number;
+    latitude?: number;
+    city?: string;
+    barangay?: string;
+    street?: string;
+}>({});
+
+watch(mapModalOpen, async (val) => {
+    if (!val) return;
+
+    await nextTick();
+    await new Promise((r) => setTimeout(r, 200)); // wait for animation
+
+    if (!miniMapRef.value) return;
+
+    // Destroy previous map if it exists
+    if (map.value) {
+        map.value.remove();
+        map.value = null;
+        marker.value = null;
+    }
+
+    mapboxgl.accessToken =
+        "pk.eyJ1Ijoiam9obm55cm9nZXJzIiwiYSI6ImNtYW5jNGRlcjBzZjEyaXM0bXRuaXE3eDIifQ.9Sl7B33OcqBAHXUiXGAveA";
+
+    map.value = new mapboxgl.Map({
+        container: miniMapRef.value,
+        style:
+            colorModeClass.value === "dark"
+                ? "mapbox://styles/johnnyrogers/cliwri7p3004v01pb56rt8tcv"
+                : "mapbox://styles/mapbox/light-v11",
+        center: [state.longitude || 124.6787, state.latitude || 6.6884],
+        zoom: 14,
     });
 
-    // Add geocoder
-    const geocoder = new MapboxGeocoder({
-        accessToken:
-            "pk.eyJ1Ijoiam9obm55cm9nZXJzIiwiYSI6ImNtYW5jNGRlcjBzZjEyaXM0bXRuaXE3eDIifQ.9Sl7B33OcqBAHXUiXGAveA",
+    map.value.on("load", () => map.value!.resize());
 
-        marker: false,
-        placeholder: "Search for an address...",
-    });
+    map.value.on("dblclick", async (e) => {
+        const coords = e.lngLat;
 
-    map.addControl(geocoder);
+        if (!marker.value) {
+            marker.value = new mapboxgl.Marker({ draggable: true })
+                .setLngLat(coords)
+                .addTo(map.value!);
 
-    geocoder.on("result", (e: { result: GeocoderResult }) => {
-        const r = e.result;
-        pendingAddress.value = {
-            place_name: r.place_name,
-            lng: r.geometry.coordinates[0],
-            lat: r.geometry.coordinates[1],
-            context: r.context || [],
-        };
+            marker.value.on("dragend", async () => {
+                const lngLat = marker.value!.getLngLat();
+                const result = await reverseGeocode(lngLat.lng, lngLat.lat);
+                pendingAddress.place_name = result.place_name;
+            });
+        } else {
+            marker.value.setLngLat(coords);
+        }
 
-        mapModalOpen.value = true;
-
-        // Create preview map inside modal
-        // setTimeout(() => {
-        //     new mapboxgl.Map({
-        //         container: "confirm-map",
-        //         style: "mapbox://styles/mapbox/dark-v10",
-        //         center: [r.geometry.coordinates[0], r.geometry.coordinates[1]],
-        //         zoom: 15,
-        //     }).addControl(
-        //         new mapboxgl.Marker().setLngLat([
-        //             r.geometry.coordinates[0],
-        //             r.geometry.coordinates[1],
-        //         ]),
-        //     );
-        // }, 200);
+        const result = await reverseGeocode(coords.lng, coords.lat);
+        pendingAddress.place_name = result.place_name;
     });
 });
 
-function confirmAddress() {
-    if (!pendingAddress.value) return;
+async function fetchSuggestions() {
+    if (!searchQuery.value.trim()) {
+        searchResults.value = [];
+        return;
+    }
+    isLoading.value = true;
+    try {
+        const res = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+                searchQuery.value,
+            )}.json?access_token=pk.eyJ1Ijoiam9obm55cm9nZXJzIiwiYSI6ImNtYW5jNGRlcjBzZjEyaXM0bXRuaXE3eDIifQ.9Sl7B33OcqBAHXUiXGAveA&autocomplete=true&limit=5`,
+        );
+        const data: MapboxResponse = await res.json();
+        searchResults.value = data.features.map((f) => ({
+            id: f.id,
+            place_name: f.place_name,
+            center: f.center,
+        }));
+    } finally {
+        isLoading.value = false;
+    }
+}
 
-    const { place_name, lng, lat, context } = pendingAddress.value;
+function selectPlace(place: { place_name: string; center: [number, number] }) {
+    searchQuery.value = place.place_name;
+    searchResults.value = [];
 
-    state.address = place_name;
-    state.longitude = lng;
-    state.latitude = lat;
+    if (map.value) {
+        map.value.flyTo({
+            center: place.center,
+            zoom: 15,
+            essential: true,
+        });
+    }
+}
+async function reverseGeocode(lng: number, lat: number) {
+    const res = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}`,
+    );
+    const data = await res.json();
 
-    state.barangay = context.find((c) => c.id.includes("neighborhood"))?.text || "";
-    state.city = context.find((c) => c.id.includes("place"))?.text || "";
-    state.landmark = context.find((c) => c.id.includes("poi"))?.text || "";
+    let country = "";
+    let city = "";
+    let barangay = "";
+    let street = "";
+    let place_name = "";
 
+    if (data.features && data.features.length > 0) {
+        console.log(data.features);
+        data.features.forEach((feature: any) => {
+            if (feature.place_type.includes("country")) country = feature.text;
+            if (feature.place_type.includes("place")) city = feature.text;
+            if (feature.place_type.includes("locality")) barangay = feature.text;
+            if (feature.place_type.includes("address")) street = feature.text;
+            if (!place_name) place_name = feature.place_name;
+        });
+    }
+
+    return { country, city, barangay, street, place_name };
+}
+
+async function confirmAddress() {
+    if (!marker.value) {
+        toast.add({
+            title: "No address selected",
+            description: "Please double-click on the map to choose a location first.",
+            color: "warning",
+        });
+        return;
+    }
+    const lngLat = marker.value.getLngLat();
+    const result = await reverseGeocode(lngLat.lng, lngLat.lat);
+
+    state.longitude = lngLat.lng;
+    state.latitude = lngLat.lat;
+    state.country = result.country;
+    state.city = result.city;
+    state.barangay = result.barangay;
+    state.address = result.street;
+    pendingAddress.place_name = result.place_name;
+
+    toast.add({ title: "Address confirmed", color: "success" });
     mapModalOpen.value = false;
-    pendingAddress.value = null;
+
+    console.log("Address confirmed:", result);
 }
 
 function rejectAddress() {
-    // Keep user’s manual input
     mapModalOpen.value = false;
-    pendingAddress.value = null;
 }
+
 async function onSubmit(event: FormSubmitEvent<Schema>) {
     toast.add({ title: "Success", description: "The form has been submitted.", color: "success" });
     console.log(event.data);
@@ -367,16 +515,32 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
 <template>
     <div class="space-y-5">
-        <h1 class="text-2xl font-bold">Create Listing</h1>
-        <UForm :schema="schema" :state="state" class="space-y-5" @submit="onSubmit">
-            <div class="flex flex-col rounded-lg bg-gray-50 p-4 space-y-4">
+        <div class="space-y-1">
+            <h1 class="text-2xl font-bold">Create New Listing</h1>
+            <p class="leading-snug">
+                Fill in the property details, upload images, and set the exact location. Once saved,
+                <br />
+                your listing will be ready to share or keep as a draft until you’re ready to
+                publish.
+            </p>
+        </div>
+
+        <UForm :schema="schema" :state="state" class="space-y-5 mb-4" @submit="onSubmit">
+            <div
+                class="flex flex-col rounded-lg bg-gray-50 dark:bg-gray-950/20 shadow-xs p-4 space-y-4"
+            >
                 <strong>Basic Info</strong>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <UFormField label="Title" name="title" class="w-full">
                         <UInput v-model="state.title" size="xl" class="w-full" />
                     </UFormField>
 
-                    <UFormField label="Description" name="description" class="w-full">
+                    <UFormField
+                        label="Description"
+                        name="description"
+                        hint="Optional"
+                        class="w-full"
+                    >
                         <UInput v-model="state.description" size="xl" class="w-full" />
                     </UFormField>
                     <UFormField label="Availability" name="availability" class="w-full">
@@ -404,7 +568,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
                 </div>
             </div>
 
-            <div class="flex flex-col rounded-lg bg-gray-50 p-4 space-y-4">
+            <div
+                class="flex flex-col rounded-lg bg-gray-50 dark:bg-gray-950/20 shadow-xs p-4 space-y-4"
+            >
                 <strong>Property Details</strong>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <UFormField label="Max Occupants" name="occupants" class="w-full">
@@ -417,14 +583,16 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
                         <UInputNumber v-model="state.bathrooms" size="xl" class="w-full" />
                     </UFormField>
                     <UFormField
-                        label="Advance Rent (in Months)"
+                        label="Advance Rent"
+                        hint="Number of Months"
                         name="month_advance"
                         class="w-full"
                     >
                         <UInputNumber v-model="state.month_advance" size="xl" class="w-full" />
                     </UFormField>
                     <UFormField
-                        label="Advance Deposit (in Months)"
+                        label="Advance Deposit"
+                        hint="Number of Months"
                         name="month_deposit"
                         class="w-full"
                     >
@@ -449,7 +617,12 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
                         />
                     </UFormField>
 
-                    <UFormField label="Amenities" name="amenities" class="w-full">
+                    <UFormField
+                        label="Amenities"
+                        name="amenities"
+                        hint="You can select multiple"
+                        class="w-full"
+                    >
                         <USelectMenu
                             v-model="state.amenities"
                             multiple
@@ -460,19 +633,41 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
                     </UFormField>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <UCheckbox color="primary" variant="card" label="Own Electric Meter" />
+                    <UCheckbox
+                        v-model="state.own_electric_meter"
+                        color="primary"
+                        variant="card"
+                        label="Dedicated Electric Meter"
+                    />
 
-                    <UCheckbox color="primary" variant="card" label="Own Water Meter" />
+                    <UCheckbox
+                        v-model="state.own_water_meter"
+                        color="primary"
+                        variant="card"
+                        label="Dedicated Water Meter"
+                    />
 
-                    <UCheckbox color="primary" variant="card" label="Internet Ready" />
+                    <UCheckbox
+                        v-model="state.internet_ready"
+                        color="primary"
+                        variant="card"
+                        label="Internet Ready"
+                    />
 
-                    <UCheckbox color="primary" variant="card" label="Cable Tv" />
+                    <UCheckbox
+                        v-model="state.ac_ready"
+                        color="primary"
+                        variant="card"
+                        label="Air Condition Ready"
+                    />
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div class="flex flex-col rounded-lg bg-gray-50 p-4 space-y-4">
-                    <div class="flex justify-between items-center">
+                <div
+                    class="flex flex-col rounded-lg bg-gray-50 dark:bg-gray-950/20 p-4 space-y-4 shadow-xs"
+                >
+                    <div class="flex justify-between items-start">
                         <div class="flex flex-col">
                             <strong>Nearby Places</strong>
                             <small
@@ -483,17 +678,17 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
                         </div>
                         <UButton
                             label="Add Nearby Place"
-                            icon="i-lucide-plus"
+                            icon="i-lucide-map-pin-plus"
                             color="secondary"
                             variant="soft"
-                            class="w-52 justify-center"
                             @click="nearbyPlacesModalOpen = true"
                         />
                     </div>
 
                     <!-- Table -->
-                    <UTable :data="nearbyPlacesList" :columns="columns" class="flex-1" />
-
+                    <UFormField name="nearby_places" class="w-full">
+                        <UTable :data="nearbyPlacesList" :columns="columns" class="flex-1" />
+                    </UFormField>
                     <!-- Modal -->
                     <UModal
                         v-model:open="nearbyPlacesModalOpen"
@@ -575,109 +770,169 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
                         </template>
                     </UModal>
                 </div>
-                <div class="flex flex-col rounded-lg bg-gray-50 p-4 space-y-4">
-                    <div class="flex flex-col">
-                        <strong>Property Images</strong>
-                        <small
-                            >Upload at least 4 images. The first one will be used as the primary
-                            display image.</small
-                        >
-                    </div>
+                <div
+                    class="flex flex-col rounded-lg bg-gray-50 dark:bg-gray-950/20 p-4 space-y-4 shadow-xs"
+                >
+                    <strong>Property Images</strong>
 
-                    <UFileUpload
-                        layout="grid"
-                        multiple
-                        label="Drop your images here"
-                        description="PNG, JPG or GIF (max. 2MB)"
+                    <UFormField
+                        label="Upload at least 4 images"
+                        hint="  The first image you selected will be used as the primary display
+                    image."
+                        name="images"
                         class="w-full"
-                        :ui="{
-                            base: 'h-32',
-                        }"
-                        size="sm"
-                    />
+                    >
+                        <UFileUpload
+                            v-model="state.images"
+                            layout="grid"
+                            multiple
+                            label="Drop your images here"
+                            description="PNG, JPG or GIF (max. 2MB)"
+                            size="sm"
+                            class="w-full"
+                            :interactive="false"
+                            :ui="{ base: 'h-32' }"
+                        >
+                            <template #actions="{ open }">
+                                <UButton
+                                    label="Select images"
+                                    icon="i-lucide-upload"
+                                    color="neutral"
+                                    variant="outline"
+                                    @click="open()"
+                                />
+                            </template>
+
+                            <template #files-top="{ open, files }">
+                                <div
+                                    v-if="files?.length"
+                                    class="mb-2 flex items-center justify-between"
+                                >
+                                    <p class="font-bold">Files ({{ files?.length }})</p>
+
+                                    <UButton
+                                        v-if="files.length < 4"
+                                        icon="i-lucide-plus"
+                                        label="Add more"
+                                        color="neutral"
+                                        variant="outline"
+                                        class="-my-2"
+                                        @click="open()"
+                                    />
+                                </div>
+                            </template>
+                        </UFileUpload>
+                    </UFormField>
                 </div>
             </div>
 
-            <div class="flex flex-col rounded-lg bg-gray-50 p-4 space-y-4">
-                <strong>Property Address</strong>
-                <UButton
-                    label="Show Map"
-                    icon="i-lucide-plus"
-                    color="secondary"
-                    variant="soft"
-                    class="w-52 justify-center"
-                    @click="mapModalOpen = true"
-                />
-                <UModal v-model:open="mapModalOpen" title="Did you mean?">
+            <div
+                class="flex flex-col rounded-lg bg-gray-50 dark:bg-gray-950/20 p-4 space-y-4 shadow-xs"
+            >
+                <div class="flex justify-between items-start">
+                    <div class="flex flex-col">
+                        <strong>Property Address</strong>
+                        <small>Select the exact spot on the map for greater accuracy.</small>
+                    </div>
+
+                    <UButton
+                        label="Select Location"
+                        icon="i-lucide-map"
+                        color="secondary"
+                        variant="soft"
+                        @click="mapModalOpen = true"
+                    />
+                </div>
+
+                <UModal
+                    v-model:open="mapModalOpen"
+                    :ui="{ content: 'max-w-3xl w-full h-[650px]' }"
+                    title="Pinpoint Property Location"
+                >
                     <template #body>
-                        <div class="p-4 space-y-4">
-                            <p class="text-blue-500 underline cursor-pointer">
+                        <div class="flex flex-col h-96 w-full space-y-2">
+                            <strong class="text-blue-500 text-sm cursor-pointer">
                                 {{ pendingAddress?.place_name }}
-                            </p>
+                            </strong>
+                            <div class="relative w-full">
+                                <UInput
+                                    v-model="searchQuery"
+                                    placeholder="Search address..."
+                                    size="xl"
+                                    class="w-full"
+                                    :loading="isLoading"
+                                    @input="fetchSuggestions"
+                                />
 
-                            <div id="mini-map" class="w-full h-48 rounded-md"></div>
-
-                            <div class="flex gap-2 mt-4">
-                                <UButton color="primary" @click="confirmAddress"
-                                    >Yes, confirm</UButton
+                                <div
+                                    v-if="searchResults.length > 0"
+                                    class="absolute z-50 mt-1 w-full rounded-lg border border-slate-800 bg-gray-50 dark:bg-slate-900 shadow"
                                 >
-                                <UButton color="neutral" variant="outline" @click="rejectAddress">
-                                    No, use the address I provided
-                                </UButton>
+                                    <ul>
+                                        <li
+                                            v-for="place in searchResults"
+                                            :key="place.id"
+                                            class="cursor-pointer px-4 py-2 hover:bg-gray-100"
+                                            @click="selectPlace(place)"
+                                        >
+                                            {{ place.place_name }}
+                                        </li>
+                                    </ul>
+                                </div>
                             </div>
+
+                            <div ref="miniMapRef" class="w-full h-full rounded-b-full"></div>
                         </div>
                     </template>
                     <template #footer="{ close }">
                         <UButton
-                            label="Cancel"
+                            label="No, use the address I provided"
                             color="neutral"
                             variant="outline"
                             tabindex="7"
-                            @click="close"
+                            @click="rejectAddress"
                         />
                         <UButton
-                            label="Save"
+                            label="Yes, confirm"
                             color="primary"
                             tabindex="6"
-                            @click="handleNearbyPlaceSubmit"
+                            @click="confirmAddress"
                         />
                     </template>
                 </UModal>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <UFormField label="Title" name="title" class="w-full">
-                        <UInput v-model="state.title" size="xl" class="w-full" />
+                    <UFormField label="Street/Avenue" name="address" class="w-full">
+                        <UInput v-model="state.address" readonly size="xl" class="w-full" />
                     </UFormField>
 
-                    <UFormField label="Description" name="description" class="w-full">
-                        <UInput v-model="state.description" size="xl" class="w-full" />
+                    <UFormField label="Barangay" name="barangay" class="w-full">
+                        <UInput v-model="state.barangay" readonly size="xl" class="w-full" />
                     </UFormField>
-                    <UFormField label="Availability" name="availability" class="w-full">
-                        <USelect
-                            v-model="state.availability"
-                            :items="availabilityOptions"
-                            size="xl"
-                            class="w-full"
-                        />
+
+                    <UFormField label="City" name="city" class="w-full">
+                        <UInput v-model="state.city" readonly size="xl" class="w-full" />
                     </UFormField>
-                    <UFormField label="Price" name="price" class="w-full">
-                        <UInputNumber
-                            v-model="state.price"
-                            :step="500"
-                            :format-options="{
-                                style: 'currency',
-                                currency: 'PHP',
-                                currencyDisplay: 'code',
-                                currencySign: 'accounting',
-                            }"
-                            size="xl"
-                            class="w-full"
-                        />
+                    <UFormField label="Country" name="country" class="w-full">
+                        <UInput v-model="state.country" readonly size="xl" class="w-full" />
                     </UFormField>
                 </div>
             </div>
 
-            <UButton type="submit"> Submit </UButton>
+            <div class="flex justify-end items-center space-x-3">
+                <URadioGroup
+                    v-model="state.status"
+                    orientation="horizontal"
+                    indicator="end"
+                    variant="table"
+                    default-value="Publish"
+                    :items="checkBoxOptions"
+                    size="sm"
+                />
+                <UButton size="xl" leading-icon="i-lucide-check" type="submit">
+                    Save Listing
+                </UButton>
+            </div>
         </UForm>
     </div>
 </template>

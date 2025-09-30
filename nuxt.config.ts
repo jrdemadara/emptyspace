@@ -21,6 +21,11 @@ export default defineNuxtConfig({
     pageTransition: { name: "page", mode: "out-in" },
   },
 
+  mapbox: {
+    accessToken:
+      "pk.eyJ1Ijoiam9obm55cm9nZXJzIiwiYSI6ImNtYW5jNGRlcjBzZjEyaXM0bXRuaXE3eDIifQ.9Sl7B33OcqBAHXUiXGAveA",
+  },
+
   modules: [
     "@nuxt/eslint",
     "@nuxt/fonts",

@@ -38,12 +38,7 @@ const { data, pending, error } = useUserListings();
             <div class="flex w-full justify-between">
                 <div class="flex rounded bg-gray-50 w-52" />
                 <NuxtLink to="/listings/create">
-                    <UButton
-                        icon="i-lucide-plus"
-                        size="xl"
-                        color="secondary"
-                        variant="solid"
-                        class="px-5 justify-center"
+                    <UButton icon="i-lucide-plus" size="xl" color="secondary" variant="solid"
                         >Create Listing</UButton
                     >
                 </NuxtLink>
@@ -52,7 +47,7 @@ const { data, pending, error } = useUserListings();
                 <li
                     v-for="listing in data.data"
                     :key="listing.id"
-                    class="border rounded-xl border-gray-300 flex"
+                    class="border rounded-xl border-gray-300 dark:border-gray-800 flex"
                 >
                     <img
                         v-if="listing.image"
@@ -61,7 +56,7 @@ const { data, pending, error } = useUserListings();
                         class="size-38 object-cover rounded-tl-lg rounded-bl-lg"
                     />
                     <div
-                        class="flex flex-col border-e border-gray-300 p-2 items-start justify-between w-full"
+                        class="flex flex-col border-e border-gray-300 dark:border-gray-800 p-2 items-start justify-between w-full"
                     >
                         <div class="flex flex-col">
                             <span class="font-bold capitalize">{{ listing.title }}</span>
@@ -78,7 +73,7 @@ const { data, pending, error } = useUserListings();
                     </div>
 
                     <div
-                        class="flex flex-col justify-between border-e border-gray-300 py-2 px-5 w-full"
+                        class="flex flex-col justify-between border-e border-gray-300 dark:border-gray-800 py-2 px-5 w-full"
                     >
                         <div class="flex space-x-5 justify-between">
                             <div class="flex flex-col">
