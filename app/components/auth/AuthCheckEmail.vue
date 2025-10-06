@@ -5,37 +5,56 @@ import { useAuth } from "@/stores/auth";
 import { useCheckEmail } from "~/composables/auth/useCheckEmail";
 
 const auth = useAuth();
+const toast = useToast();
 
+// ✅ Validation schema
 const schema = z.object({
     email: z.string().email("Invalid email"),
 });
-
 type Schema = z.output<typeof schema>;
 
+// ✅ Form state
 const state = reactive<Partial<Schema>>({
     email: undefined,
 });
 
-const toast = useToast();
-async function onSubmit(event: FormSubmitEvent<Schema>) {
-    const { result, error: checkError, refresh } = useCheckEmail(event.data.email);
+// ✅ Initialize composable once (not inside onSubmit)
+const { result, error, refresh } = useCheckEmail();
 
-    await refresh();
+async function onSubmit() {
+    await refresh(state.email!); // pass plain string
 
-    if (checkError.value) {
+    if (error.value) {
         toast.add({
             title: "Error",
-            description: checkError.value.message || "Failed to check email",
+            description: error.value.message || "Something went wrong!",
             color: "error",
         });
-    } else if (result.value?.message === "Email exists") {
-        toast.add({ title: "Email Found", description: "Proceed to login", color: "success" });
-        auth.setEmail(event.data.email);
+        return;
+    }
+
+    if (result.value?.exists === false) {
+        toast.add({
+            title: "New User",
+            description: "Proceed to registration",
+            color: "neutral",
+        });
+        auth.setEmail(state.email!);
+        auth.setStep("register");
+    } else if (result.value?.exists === true) {
+        toast.add({
+            title: "Email Found",
+            description: "Proceed to login",
+            color: "success",
+        });
+        auth.setEmail(state.email!);
         auth.setStep("login");
     } else {
-        toast.add({ title: "New User", description: "Proceed to registration", color: "neutral" });
-        auth.setEmail(event.data.email);
-        auth.setStep("register");
+        toast.add({
+            title: "Error",
+            description: result.value?.message || "Unexpected response",
+            color: "error",
+        });
     }
 }
 </script>

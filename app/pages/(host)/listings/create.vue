@@ -3,6 +3,9 @@ import * as z from "zod";
 import type { FormSubmitEvent, SelectItem, TableColumn } from "@nuxt/ui";
 import type { Row } from "@tanstack/vue-table";
 import mapboxgl from "mapbox-gl";
+import type { Listing } from "@/composables/host/useCreateListing";
+import { useCreateListing } from "@/composables/host/useCreateListing";
+const { data, error, loading, createListing } = useCreateListing();
 
 const colorMode = useColorMode();
 const colorModeClass = computed(() => (colorMode.value === "dark" ? "dark" : ""));
@@ -246,10 +249,12 @@ function handleNearbyPlaceSubmit() {
         if (editIndex.value !== null) {
             // update existing
             nearbyPlacesList.value[editIndex.value] = parsed;
+            state.nearby_places![editIndex.value] = parsed;
             toast.add({ title: "Place updated", color: "success" });
         } else {
             // add new
             nearbyPlacesList.value.push(parsed);
+            state.nearby_places = [...(state.nearby_places || []), parsed];
             toast.add({ title: "Place added", color: "success" });
         }
 
@@ -507,9 +512,50 @@ function rejectAddress() {
     mapModalOpen.value = false;
 }
 
-async function onSubmit(event: FormSubmitEvent<Schema>) {
-    toast.add({ title: "Success", description: "The form has been submitted.", color: "success" });
-    console.log(event.data);
+async function onSubmit(event: FormSubmitEvent<Listing>) {
+    const formData = new FormData();
+
+    // Append normal fields
+    Object.entries(event.data).forEach(([key, value]) => {
+        if (Array.isArray(value) && key !== "images" && key !== "nearby_places") {
+            // for arrays (like amenities)
+            value.forEach((v) => formData.append(`${key}[]`, String(v)));
+        } else if (typeof value === "object" && key === "nearby_places") {
+            // for nearby_places (array of objects) — stringify
+            formData.append(key, JSON.stringify(value));
+        } else if (value !== undefined && key !== "images") {
+            formData.append(key, String(value));
+        }
+    });
+
+    // Append images
+    if (event.data.images && event.data.images.length) {
+        event.data.images.forEach((file: File, index: number) => {
+            formData.append("images[]", file); // backend should expect images[]
+        });
+    }
+
+    // Send with fetch instead of JSON
+    const res = await fetch("/api/listings", {
+        method: "POST",
+        body: formData,
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+        toast.add({
+            title: "Error",
+            description: result.message || "Upload failed",
+            color: "error",
+        });
+        return;
+    }
+    toast.add({
+        title: "Success",
+        description: result.message || "Listing created!",
+        color: "success",
+    });
 }
 </script>
 

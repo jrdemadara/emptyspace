@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref } from "vue";
-
 import me from "~/assets/img/me.jpg";
 const favorites = useFavorite();
 const auth = useAuth();
@@ -21,7 +20,7 @@ const auth = useAuth();
 
         <div class="flex-none">
             <div class="flex space-x-1 justify-end items-center">
-                <NuxtLink to="/login">
+                <NuxtLink to="/login" @click="auth.setHostMode(true)">
                     <UButton label="Become a host" variant="outline" color="neutral" />
                 </NuxtLink>
 
@@ -32,7 +31,7 @@ const auth = useAuth();
                     <Icon name="heroicons:bell" size="24" />
                     <span
                         class="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"
-                    ></span>
+                    />
                 </button>
 
                 <button
@@ -43,7 +42,7 @@ const auth = useAuth();
                         <span
                             v-if="favorites.has()"
                             class="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"
-                        ></span>
+                        />
                     </Transition>
                 </button>
                 <div class="flex items-center justify-center hover:bg-amber-200 rounded-full p-2">
@@ -57,7 +56,10 @@ const auth = useAuth();
                                         <li
                                             class="flex justify-between items-center p-2 hover:bg-slate-50 font-semibold space-x-4"
                                         >
-                                            <NuxtLink to="/login" class="block text-sm py-1"
+                                            <NuxtLink
+                                                to="/login"
+                                                class="block text-sm py-1"
+                                                @click="auth.setHostMode(false)"
                                                 >Create an account</NuxtLink
                                             >
 
@@ -84,12 +86,12 @@ const auth = useAuth();
                                             <!-- <UAvatar :src="me" /> -->
 
                                             <div class="flex flex-col w-full">
-                                                <span class="text-sm font-medium"
-                                                    >Johnny Rogers</span
-                                                >
-                                                <span class="text-xs text-gray-500"
-                                                    >jrdemadara@protonmail.com</span
-                                                >
+                                                <span class="text-sm font-medium capitalize">{{
+                                                    auth.fullName
+                                                }}</span>
+                                                <small class="text-gray-500">{{
+                                                    auth.user.email
+                                                }}</small>
                                             </div>
                                         </div>
                                     </div>

@@ -3,19 +3,28 @@ interface CheckEmailResponse {
   message: string;
 }
 
-export const useCheckEmail = (email: string) => {
+export const useCheckEmail = () => {
   const {
-    data: result,
-    pending: loading,
+    data,
+    pending,
     error,
-    refresh,
+    refresh: _originalRefresh,
   } = useAsyncData<CheckEmailResponse>(
-    `check-email-${email}`,
-    () => $fetch(`/api/auth/check-email/${email}`),
-    {
-      immediate: false,
+    "check-email",
+    () => {
+      throw new Error("Use refresh(email) instead");
     },
+    { immediate: false },
   );
 
-  return { result, loading, error, refresh };
+  const refresh = async (email: string) => {
+    const result = await $fetch<CheckEmailResponse>("/api/auth/check-email", {
+      method: "GET",
+      query: { email },
+    });
+    data.value = result;
+    return result;
+  };
+
+  return { result: data, loading: pending, error, refresh };
 };

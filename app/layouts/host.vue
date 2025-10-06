@@ -2,6 +2,10 @@
 import type { NavigationMenuItem } from "@nuxt/ui";
 const route = useRoute();
 
+definePageMeta({
+    middleware: ["auth"],
+});
+
 // Generate breadcrumbs based on route path
 const breadcrumbs = computed(() => {
     const segments = route.path.split("/").filter(Boolean);
@@ -157,7 +161,7 @@ const navItems = ref<NavigationMenuItem[][]>([
                         </div>
                     </div>
                 </div>
-                <div class="flex space-x-3">
+                <div class="flex space-x-3 text-black dark:text-white">
                     <UIcon name="i-lucide-facebook" />
                     <UIcon name="i-lucide-youtube" />
                     <UIcon name="i-lucide-twitter" />

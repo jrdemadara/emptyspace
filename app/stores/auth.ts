@@ -6,7 +6,7 @@ export interface User {
   id: number | null;
   first_name: string | null;
   last_name: string | null;
-  screen_name: string | null;
+  display_name: string | null;
   photo: string | null;
   email: string | null;
   phone: string | null;
@@ -23,13 +23,14 @@ export const useAuth = defineStore("auth", {
   state: () => ({
     step: "check" as AuthStep,
     email: "" as string,
+    isHost: false,
 
     token: null as string | null,
     user: {
       id: null,
       first_name: null,
       last_name: null,
-      screen_name: null,
+      display_name: null,
       photo: null,
       email: null,
       phone: null,
@@ -55,6 +56,10 @@ export const useAuth = defineStore("auth", {
       this.step = step;
     },
 
+    setHostMode(isHost: boolean) {
+      this.isHost = isHost;
+    },
+
     setAuth(res: AuthResponse) {
       this.token = res.token;
       this.user = { ...res.user, guest: false };
@@ -67,7 +72,7 @@ export const useAuth = defineStore("auth", {
         id: null,
         first_name: null,
         last_name: null,
-        screen_name: null,
+        display_name: null,
         photo: null,
         email: null,
         phone: null,
@@ -91,7 +96,7 @@ export const useAuth = defineStore("auth", {
           id: null,
           first_name: "Guest",
           last_name: guestId.slice(0, 6),
-          screen_name: `guest_${guestId.slice(0, 6)}`,
+          display_name: `guest_${guestId.slice(0, 6)}`,
           photo: null,
           email: null,
           phone: null,
@@ -107,7 +112,7 @@ export const useAuth = defineStore("auth", {
         id: null,
         first_name: null,
         last_name: null,
-        screen_name: null,
+        display_name: null,
         photo: null,
         email: null,
         phone: null,
@@ -116,6 +121,7 @@ export const useAuth = defineStore("auth", {
       };
       this.step = "check";
       this.email = "";
+      this.isHost = false;
     },
   },
 

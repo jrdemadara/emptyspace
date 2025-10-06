@@ -1,4 +1,4 @@
-interface CheckPasswordResponse {
+interface LoginResponse {
   message: string;
   user?: {
     id: number;
@@ -19,20 +19,10 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{ email?: string; password?: string }>(event);
   const { email, password } = body;
 
-  if (!email || !password) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: "Email and password are required",
-    });
-  }
-
-  const response = await $fetch<CheckPasswordResponse>(
-    `${config.laravelApi}/api/auth/check-password`,
-    {
-      method: "POST",
-      body: { email, password },
-    },
-  );
+  const response = await $fetch<LoginResponse>(`${config.laravelApi}/api/auth/check-password`, {
+    method: "POST",
+    body: { email, password },
+  });
 
   return response;
 });

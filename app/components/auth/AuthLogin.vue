@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { z } from "zod";
-import type { FormSubmitEvent } from "@nuxt/ui";
 import { useAuth } from "@/stores/auth";
-import { useCheckPassword } from "~/composables/auth/useCheckPassword";
+import { useLogin } from "~/composables/auth/useLogin";
+
 const router = useRouter();
 const auth = useAuth();
+const toast = useToast();
 
 const schema = z.object({
-    email: z.string().email("Invalid email"),
+    email: z.email("Invalid email"),
     password: z.string().min(6, "Password must be at least 6 characters").max(64),
 });
 type Schema = z.output<typeof schema>;
@@ -17,10 +18,12 @@ const state = reactive<Partial<Schema>>({
     password: undefined,
 });
 
-const toast = useToast();
+const { result, loading, error, refresh } = useLogin(
+    computed(() => state.email ?? ""),
+    computed(() => state.password ?? ""),
+);
 
-async function onSubmit(event: FormSubmitEvent<Schema>) {
-    const { data, error, refresh } = useCheckPassword(event.data.email, event.data.password);
+async function onSubmit() {
     await refresh();
 
     if (error.value) {
@@ -32,31 +35,32 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         return;
     }
 
-    if (data.value?.token && data.value.user) {
+    if (result.value?.token && result.value.user) {
         toast.add({
             title: "Login Successful",
-            description: `Welcome back, ${data.value.user?.first_name}`,
+            description: `Welcome back, ${result.value.user.first_name}`,
             color: "success",
         });
+
         auth.setAuth({
-            token: data.value.token,
+            token: result.value.token,
             user: {
-                ...data.value.user,
+                ...result.value.user,
                 guest: false,
-                photo: data.value.user.photo ?? null,
+                photo: result.value.user.photo ?? null,
             },
         });
+
         router.push({ name: "dashboard" });
     }
 }
 </script>
-
 <template>
     <div class="flex flex-col space-y-2">
         <div class="flex items-center justify-between">
             <p class="flex items-center gap-2">
                 <span class="font-medium">Email:</span>
-                <span>{{ auth.email }}</span>
+                <strong>{{ auth.email }}</strong>
             </p>
             <UButton
                 type="button"
@@ -86,7 +90,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             </UFormField>
 
             <UButton
-                loading-auto
+                loading
                 loading-icon="lucide:loader"
                 type="submit"
                 size="xl"

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { z } from "zod";
 import type { FormSubmitEvent } from "@nuxt/ui";
-
 const auth = useAuth();
 
 const schema = z.object({
@@ -30,7 +29,7 @@ definePageMeta({
     <div class="flex w-screen h-screen flex-col items-center justify-center space-y-8">
         <AppLogo logo-class="size-12" text-class="text-3xl" />
         <div
-            class="flex flex-col rounded-lg border border-slate-300 p-12 space-y-8 w-1/2 max-w-5xl"
+            class="flex flex-col rounded-lg border border-slate-300 p-12 space-y-8 w-2/3 max-w-5xl"
         >
             <div class="flex">
                 <UButton
@@ -51,7 +50,7 @@ definePageMeta({
             </div>
             <div class="flex w-full justify-between space-x-8">
                 <div class="flex flex-col w-full">
-                    <div v-if="auth.step == 'check'" class="flex flex-col space-y-5">
+                    <div v-if="auth.step == 'check'" class="flex flex-col space-y-8 py-8">
                         <AuthCheckEmail />
                         <div class="flex items-center">
                             <div class="flex-grow h-px bg-slate-300" />
@@ -62,7 +61,11 @@ definePageMeta({
                     </div>
 
                     <div v-else-if="auth.step == 'login'" class="py-12">
-                        <AuthCheckPassword />
+                        <AuthLogin />
+                    </div>
+
+                    <div v-else-if="auth.step == 'register'" class="py-8">
+                        <AuthRegister />
                     </div>
                     <AppTermsAgreement />
                 </div>
